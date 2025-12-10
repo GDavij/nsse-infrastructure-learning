@@ -1,47 +1,33 @@
-resource "aws_autoscaling_group" "bar" {
-  name                      = "foobar3-terraform-test"
-  max_size                  = 5
-  min_size                  = 2
-  health_check_grace_period = 300
-  health_check_type         = "ELB"
-  desired_capacity          = 4
-  force_delete              = true
-  placement_group           = aws_placement_group.test.id
-  launch_configuration      = aws_launch_configuration.foobar.name
-  vpc_zone_identifier       = [aws_subnet.example1.id, aws_subnet.example2.id]
+resource "aws_autoscaling_group" "control_plane" {
+  name                      = var.control_plane_autoscaling_group.name
+  max_size                  = var.control_plane_autoscaling_group.max_size
+  min_size                  = var.control_plane_autoscaling_group.min_size
+  desired_capacity          = var.control_plane_autoscaling_group.desired_capacity
 
-  instance_maintenance_policy {
-    min_healthy_percentage = 90
-    max_healthy_percentage = 120
+  health_check_grace_period = var.control_plane_autoscaling_group.health_check_grace_period
+  health_check_type         = var.control_plane_autoscaling_group.health_check_type
+  
+  vpc_zone_identifier       = data.aws_subnets.private_subnets.ids
+
+  launch_template {
+    name = aws_launch_template.control_plane.name
+    version = "$Latest"  
   }
 
-  initial_lifecycle_hook {
-    name                 = "foobar"
-    default_result       = "CONTINUE"
-    heartbeat_timeout    = 2000
-    lifecycle_transition = "autoscaling:EC2_INSTANCE_LAUNCHING"
-
-    notification_metadata = jsonencode({
-      foo = "bar"
-    })
-
-    notification_target_arn = "arn:aws:sqs:us-east-1:444455556666:queue1*"
-    role_arn                = "arn:aws:iam::123456789012:role/S3Access"
+  instance_maintenance_policy {
+    min_healthy_percentage = var.control_plane_autoscaling_group.instance_maintenance_policy.min_healthy_percentage
+    max_healthy_percentage = var.control_plane_autoscaling_group.instance_maintenance_policy.max_healthy_percentage
   }
 
   tag {
-    key                 = "foo"
-    value               = "bar"
+    key                 = "Project"
+    value               = var.tags.Project
     propagate_at_launch = true
   }
 
-  timeouts {
-    delete = "15m"
-  }
-
   tag {
-    key                 = "lorem"
-    value               = "ipsum"
-    propagate_at_launch = false
+    key                 = "Environment"
+    value               = var.tags.Environment
+    propagate_at_launch = true
   }
 }
